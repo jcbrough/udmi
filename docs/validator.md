@@ -28,8 +28,27 @@ information will be included about what exactly went wrong.
 ## Error Output
 
 If there is an error validating a particular device, a warning/error message will be shown
-on the console and diagnostic files will be saved in `{udmi_root}/out/{device_id}/`.
+on the console and diagnostic files will be saved in `{udmi_root}/out/{device_id}/`. Example
+run:
 
+```
+~/sites/gcp-project$ ~/udmi/bin/validator . gcp-project udmi-validator
+...
+Resetting existing subscription projects/gcp-project/subscriptions/udmi-validator
+Entering pubsub message loop on projects/gcp-project/subscriptions/udmi-validator
+Processing device #1/665: PS-20/pointset
+java.lang.RuntimeException: Metadata validation failed: Extra points: faulty_finding,recalcitrant_angle,superimposition_reading
+	at com.google.daq.mqtt.validator.ReportingDevice.validateMetadata(ReportingDevice.java:65)
+	at com.google.daq.mqtt.validator.Validator.validateUpdate(Validator.java:304)
+	at com.google.daq.mqtt.validator.Validator.validateMessage(Validator.java:202)
+	at com.google.daq.mqtt.validator.Validator.lambda$validatePubSub$0(Validator.java:185)
+	at com.google.daq.mqtt.util.PubSubClient.processMessage(PubSubClient.java:105)
+	at com.google.daq.mqtt.validator.Validator.validatePubSub(Validator.java:184)
+	at com.google.daq.mqtt.validator.Validator.main(Validator.java:93)
+Validation complete PS-20/pointset
+```
+
+Which will result in detailed output files:
 ```
 ~/sites/site_name$ ls -l ~/udmi/out/devices/PS-20/
 total 24
