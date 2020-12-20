@@ -4,7 +4,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.cloudiot.v1.model.Device;
 import com.google.cloud.ServiceOptions;
-import com.google.common.base.Joiner;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Map;
@@ -24,7 +23,7 @@ public class ProxyTarget {
   private static final String STATE_SUBFOLDER = "state";
 
   static final String STATE_TOPIC = "state";
-  private static final long DEVICE_REFRESH_SEC = 60 * 60;
+  private static final long DEVICE_REFRESH_SEC = 10 * 60;
 
   private final Map<String, MessagePublisher> messagePublishers = new ConcurrentHashMap<>();
   private final Map<String, String> configMap;
@@ -33,7 +32,7 @@ public class ProxyTarget {
   private final Consumer<MessageBundle> bundleOut;
   private CloudIotConfig cloudConfig;
   private CloudIotManager cloudIotManager;
-  private Map<String, LocalDateTime> targetUpdated = new ConcurrentHashMap<>();
+  private Map<String, LocalDateTime> initializedTimes = new ConcurrentHashMap<>();
 
   public ProxyTarget(Map<String, String> configMap, String registryId,
       Consumer<MessageBundle> bundleOut) {
@@ -92,22 +91,17 @@ public class ProxyTarget {
     return cloudIotConfig;
   }
 
-  private String getDeviceKey(String deviceId) {
-    return registryId + ":" + deviceId;
-  }
-
   public MessagePublisher getMqttPublisher(String deviceId) {
-    return messagePublishers
-        .computeIfAbsent(getDeviceKey(deviceId), deviceKey -> newMqttPublisher(deviceId));
+    return messagePublishers.computeIfAbsent(deviceId, deviceKey -> newMqttPublisher(deviceId));
   }
 
   public boolean hasMqttPublisher(String deviceId) {
-    return messagePublishers.containsKey(getDeviceKey(deviceId));
+    return messagePublishers.containsKey(deviceId);
   }
 
   public void clearMqttPublisher(String deviceId) {
     info("Publishers remove " + deviceId);
-    MessagePublisher publisher = messagePublishers.remove(getDeviceKey(deviceId));
+    MessagePublisher publisher = messagePublishers.remove(deviceId);
     if (publisher != null) {
       publisher.close();
     }
@@ -119,6 +113,7 @@ public class ProxyTarget {
     Map<String, String> metadata = device.getMetadata();
     String keyAlgorithm = metadata.get("key_algorithm");
     byte[] keyBytes = Base64.getDecoder().decode(metadata.get("key_bytes"));
+    initializedTimes.put(deviceId, LocalDateTime.now());
     return new MqttPublisher(proxyConfig.dstProjectId, proxyConfig.dstCloudRegion,
         registryId, deviceId, keyBytes, keyAlgorithm,
         this::messageHandler, this::errorHandler);
@@ -128,16 +123,15 @@ public class ProxyTarget {
     if (proxyConfig == null) {
       return;
     }
-    String deviceKey = getDeviceKey(deviceId);
     if (subFolder == null) {
-      info("Ignoring message with no subFolder for " + deviceKey);
+      info("Ignoring message with no subFolder for " + deviceId);
       return;
     }
     if (shouldIgnoreTarget(deviceId)) {
-        info("Ignoring " + subFolder + " message for " + deviceKey);
+        info("Ignoring " + subFolder + " message for " + deviceId);
         return;
     }
-    info("Sending " + subFolder + " message for " + deviceKey);
+    info("Sending " + subFolder + " message for " + deviceId);
     try {
       MessagePublisher messagePublisher = getMqttPublisher(deviceId);
       String mqttTopic = STATE_SUBFOLDER.equals(subFolder) ? STATE_TOPIC :
@@ -145,22 +139,18 @@ public class ProxyTarget {
       messagePublisher.publish(deviceId, mqttTopic, data);
       mirrorMessage(deviceId, data, subFolder);
     } catch (Exception e) {
-      LOG.warn("Problem publishing device " + deviceKey, e);
+      LOG.warn("Problem publishing device " + deviceId, e);
       clearMqttPublisher(deviceId);
     }
   }
 
   private boolean shouldIgnoreTarget(String deviceId) {
-    String deviceKey = getDeviceKey(deviceId);
-    LocalDateTime lastUpdated = targetUpdated.getOrDefault(deviceKey, null);
-    LocalDateTime now = LocalDateTime.now();
-    targetUpdated.put(deviceKey, now);
-    if (lastUpdated == null || hasMqttPublisher(deviceId)) {
+    if (!hasMqttPublisher(deviceId)) {
       return false;
     }
-    LocalDateTime updateTime = lastUpdated.plusSeconds(DEVICE_REFRESH_SEC);
-    boolean isAfter = updateTime.isAfter(now);
-    return isAfter;
+    LocalDateTime now = LocalDateTime.now();
+    LocalDateTime initializedTime = initializedTimes.get(deviceId);
+    return now.isBefore(initializedTime.plusSeconds(DEVICE_REFRESH_SEC));
   }
 
   public void terminate() {
