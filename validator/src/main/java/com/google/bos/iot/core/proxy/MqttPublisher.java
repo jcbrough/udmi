@@ -18,7 +18,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
@@ -69,7 +68,7 @@ class MqttPublisher implements MessagePublisher {
   private final Set<String> attachedClients = new ConcurrentSkipListSet<>();
 
   private final BiConsumer<String, String> onMessage;
-  private final Consumer<Throwable> onError;
+  private final BiConsumer<MqttPublisher, Throwable> onError;
   private final String deviceId;
   private final byte[] keyBytes;
   private final String algorithm;
@@ -83,7 +82,7 @@ class MqttPublisher implements MessagePublisher {
 
   MqttPublisher(String projectId, String cloudRegion, String registryId,
       String deviceId, byte[] keyBytes, String algorithm, BiConsumer<String, String> onMessage,
-      Consumer<Throwable> onError) {
+      BiConsumer<MqttPublisher, Throwable> onError) {
     this.onMessage = onMessage;
     this.onError = onError;
     this.projectId = projectId;
@@ -284,6 +283,10 @@ class MqttPublisher implements MessagePublisher {
     }
   }
 
+  public String getDeviceId() {
+    return deviceId;
+  }
+
   private class MqttCallbackHandler implements MqttCallback {
 
     MqttCallbackHandler() {
@@ -293,9 +296,9 @@ class MqttPublisher implements MessagePublisher {
      * @see MqttCallback#connectionLost(Throwable)
      */
     public void connectionLost(Throwable cause) {
-      LOG.warn(deviceId + " MQTT Connection Lost", cause);
+      LOG.warn("MQTT connection lost " + deviceId, cause);
       connectWait.release();
-      onError.accept(cause);
+      onError.accept(MqttPublisher.this, cause);
     }
 
     /**
