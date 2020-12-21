@@ -145,7 +145,10 @@ public class ProxyTarget {
   }
 
   private boolean shouldIgnoreTarget(String deviceId) {
-    if (!hasMqttPublisher(deviceId)) {
+    if (hasMqttPublisher(deviceId)) {
+      return false;
+    }
+    if (!initializedTimes.containsKey(deviceId)) {
       return false;
     }
     LocalDateTime now = LocalDateTime.now();
