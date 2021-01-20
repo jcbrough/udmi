@@ -38,6 +38,7 @@ public class Message {
   }
 
   public static class PointConfig {
+    public String units;
   }
 
   public static class GatewayConfig {
