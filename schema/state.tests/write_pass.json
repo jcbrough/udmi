@@ -1,0 +1,54 @@
+{
+	"version": 1,
+	"timestamp": "YYYY-MM-DDTHH:MM:SSUTC",
+	"hash": "e5eed1a4",
+	"system": {
+		"location": {
+			"site": "UK-LON-40W",
+			"section": "XX-10X",
+			"position": {
+				"x": 10,
+				"y": 20
+			}
+		},
+		"physical_tag": {
+			"asset": {
+				"guid": "bim://04aEp5ymD_$u5IxhJN2aGi",
+				"site": "UK-LON-40W",
+				"name": "FCU-101"
+			}
+		}
+	},
+	"localnet": {
+		"subsystem": {
+			"bacnet": {
+				"local_id": ""
+			}
+		}
+	},
+	"gateway": {
+		"gateway_id": "GAT-400"
+	},
+	"pointset": {
+		"points": {
+			"fcu_101_room_temp": {
+				"ref": "AI1101.Present_Value",
+				"units": "Degrees-celsius"
+			},
+			"fcu_101_heating_valve": {
+				"ref": "AO1105.Present_Value",
+				"units": "Percent"
+			},
+			"fcu_101_setpoint": {
+				"ref": "AV1.Present_Value",
+				"units": "Degrees-Celsius",
+				"set_value": 21.6,
+				"value-state": "applied"
+			},
+			"fcu_101_enable": {
+				"ref": "BO1108.Present_Value",
+				"units": "No-units"
+			}
+		}
+	}
+}
