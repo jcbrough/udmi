@@ -18,8 +18,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install openjdk-11-jdk
           sudo update-alternatives --set java /usr/lib/jvm/adoptopenjdk-11-hotspot-amd64/bin/java
-      - name: Running unit tests
+      - name: Running schema validation
         run: bin/test_schema
+      - name: Schema validation output
+        if: ${{ always() }}
+        run: more `find out/schema/ -type f`
       - name: Run registrar validation
         run: bin/test_registrar
 
